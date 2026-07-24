@@ -15,7 +15,7 @@ ven el proyecto actual.
   `EVERYTHING_DLL` a su ruta.
 - Python ≥3.11 + [uv](https://docs.astral.sh/uv/).
 
-## Tool expuesta
+## Tools expuestas
 
 `search_files(query, max_results=50, offset=0, match_case=False, match_whole_word=False, match_path=False, regex=False, sort="default")`
 
@@ -24,6 +24,10 @@ ven el proyecto actual.
 nombre). `sort` es uno de `default` (orden del índice),
 `name`, `path`, `size`, `date_modified`. Devuelve `{total_results, results:[{path, is_folder,
 size, modified}]}`. Solo busca nombres, no contenido.
+
+`everything_status()` — diagnóstico: devuelve `{available, db_loaded, version, indexed_items}`
+(o `{available: False, error}` si Everything no está corriendo). Útil para que el agente compruebe
+que el índice está listo antes de buscar.
 
 ## Registro en Claude Code
 

@@ -95,6 +95,10 @@ def _load_dll() -> ctypes.WinDLL:
     dll.Everything_IsDBLoaded.restype = wt.BOOL
     dll.Everything_GetNumResults.restype = wt.DWORD
     dll.Everything_GetTotResults.restype = wt.DWORD
+    dll.Everything_GetMajorVersion.restype = wt.DWORD
+    dll.Everything_GetMinorVersion.restype = wt.DWORD
+    dll.Everything_GetRevision.restype = wt.DWORD
+    dll.Everything_GetBuildNumber.restype = wt.DWORD
     # Result accessors
     dll.Everything_GetResultFullPathNameW.argtypes = [wt.DWORD, wt.LPWSTR, wt.DWORD]
     dll.Everything_GetResultFullPathNameW.restype = wt.DWORD
@@ -136,6 +140,41 @@ def _filetime_to_iso(filetime: int) -> str | None:
         )
     except (OverflowError, OSError, ValueError):
         return None
+
+
+def status() -> dict[str, Any]:
+    """Report Everything availability and index state. Never raises.
+
+    Returns {"available", "db_loaded", "version", "indexed_items"} when reachable,
+    or {"available": False, "error": <msg>} when the dll is missing or Everything
+    is not running.
+    """
+    try:
+        dll = _load_dll()
+    except EverythingError as exc:
+        return {"available": False, "error": str(exc)}
+    with _lock:
+        db_loaded = bool(dll.Everything_IsDBLoaded())
+        if not db_loaded and dll.Everything_GetLastError() == _ERROR_IPC:
+            return {"available": False, "error": _ERROR_MESSAGES[_ERROR_IPC]}
+        version = (
+            f"{dll.Everything_GetMajorVersion()}.{dll.Everything_GetMinorVersion()}."
+            f"{dll.Everything_GetRevision()}.{dll.Everything_GetBuildNumber()}"
+        )
+        # Count everything indexed without fetching any result rows.
+        dll.Everything_Reset()
+        dll.Everything_SetSearchW("")
+        dll.Everything_SetMax(0)
+        dll.Everything_SetRequestFlags(_REQUEST_FILE_NAME)
+        indexed_items = 0
+        if dll.Everything_QueryW(True):
+            indexed_items = int(dll.Everything_GetTotResults())
+    return {
+        "available": True,
+        "db_loaded": db_loaded,
+        "version": version,
+        "indexed_items": indexed_items,
+    }
 
 
 def search(
