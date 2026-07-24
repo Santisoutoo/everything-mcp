@@ -6,9 +6,21 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from everything_mcp.sdk import EverythingError, search
+from everything_mcp.sdk import EverythingError, search, status
 
 mcp = FastMCP("everything")
+
+
+@mcp.tool()
+def everything_status() -> dict[str, Any]:
+    """Report whether Everything is reachable and its index is ready.
+
+    Call this to self-diagnose before searching: returns `available` (bool),
+    `db_loaded` (False while Everything is still building its index),
+    `version`, and `indexed_items` (total files+folders indexed). On failure
+    returns `available: False` with an actionable `error` message.
+    """
+    return status()
 
 
 @mcp.tool()
