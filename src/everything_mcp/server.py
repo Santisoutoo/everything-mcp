@@ -18,6 +18,7 @@ def search_files(
     offset: int = 0,
     match_case: bool = False,
     match_whole_word: bool = False,
+    match_path: bool = False,
     regex: bool = False,
     sort: str = "default",
 ) -> dict[str, Any]:
@@ -38,6 +39,7 @@ def search_files(
     Searches names only, NOT file contents. `total_results` in the response is
     the full match count; page with `offset` if it exceeds `max_results`.
     `match_whole_word` requires each search term to match a whole word.
+    `match_path` matches the terms against the full path, not just the name.
     `sort` is one of: default (index order), name, path, size (largest first),
     date_modified (newest first).
     """
@@ -48,6 +50,7 @@ def search_files(
             offset=offset,
             match_case=match_case,
             match_whole_word=match_whole_word,
+            match_path=match_path,
             regex=regex,
             sort=sort,
         )
