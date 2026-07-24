@@ -3,6 +3,8 @@ name = "everything-mcp"
 version = "0.1.0"
 description = "MCP server exposing Everything (voidtools) instant filename search to LLM agents"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "santisoutoo", email = "santiago.souto.01@uie.edu" }
 ]
@@ -18,9 +20,16 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "mypy>=1.11",
     "pytest>=9.1.1",
     "ruff>=0.9.0",
 ]
 
 [tool.ruff]
 line-length = 100
+
+[tool.mypy]
+files = ["src"]
+python_version = "3.11"
+ignore_missing_imports = true
+check_untyped_defs = true
