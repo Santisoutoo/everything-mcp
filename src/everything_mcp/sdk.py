@@ -82,6 +82,7 @@ def _load_dll() -> ctypes.WinDLL:
     dll.Everything_SetSearchW.argtypes = [wt.LPCWSTR]
     dll.Everything_SetMatchCase.argtypes = [wt.BOOL]
     dll.Everything_SetMatchWholeWord.argtypes = [wt.BOOL]
+    dll.Everything_SetMatchPath.argtypes = [wt.BOOL]
     dll.Everything_SetRegex.argtypes = [wt.BOOL]
     dll.Everything_SetMax.argtypes = [wt.DWORD]
     dll.Everything_SetOffset.argtypes = [wt.DWORD]
@@ -143,6 +144,7 @@ def search(
     offset: int = 0,
     match_case: bool = False,
     match_whole_word: bool = False,
+    match_path: bool = False,
     regex: bool = False,
     sort: str = "default",
 ) -> dict[str, Any]:
@@ -164,6 +166,7 @@ def search(
         dll.Everything_SetSearchW(query)
         dll.Everything_SetMatchCase(bool(match_case))
         dll.Everything_SetMatchWholeWord(bool(match_whole_word))
+        dll.Everything_SetMatchPath(bool(match_path))
         dll.Everything_SetRegex(bool(regex))
         dll.Everything_SetMax(max_results)
         dll.Everything_SetOffset(offset)
