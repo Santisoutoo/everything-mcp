@@ -44,8 +44,11 @@ _ERROR_MESSAGES = {
 }
 
 _MAX_PATH_BUF = 32768
+_MAX_RESULTS_CAP = 1000  # upper bound passed to Everything_SetMax
 _FILETIME_EPOCH_OFFSET = 116444736000000000  # FILETIME ticks at Unix epoch
 _FILETIME_TICKS_PER_SEC = 10_000_000
+
+_ERROR_IPC = 2  # Everything_GetLastError: IPC unavailable (Everything not running)
 
 
 class EverythingError(RuntimeError):
@@ -75,9 +78,23 @@ def _load_dll() -> ctypes.WinDLL:
             "ahí, o apunta la variable de entorno EVERYTHING_DLL a la DLL."
         )
     dll = ctypes.WinDLL(str(path))
+    # Search-building setters
     dll.Everything_SetSearchW.argtypes = [wt.LPCWSTR]
+    dll.Everything_SetMatchCase.argtypes = [wt.BOOL]
+    dll.Everything_SetMatchWholeWord.argtypes = [wt.BOOL]
+    dll.Everything_SetRegex.argtypes = [wt.BOOL]
+    dll.Everything_SetMax.argtypes = [wt.DWORD]
+    dll.Everything_SetOffset.argtypes = [wt.DWORD]
+    dll.Everything_SetSort.argtypes = [wt.DWORD]
+    dll.Everything_SetRequestFlags.argtypes = [wt.DWORD]
+    # Query + status
     dll.Everything_QueryW.argtypes = [wt.BOOL]
     dll.Everything_QueryW.restype = wt.BOOL
+    dll.Everything_GetLastError.restype = wt.DWORD
+    dll.Everything_IsDBLoaded.restype = wt.BOOL
+    dll.Everything_GetNumResults.restype = wt.DWORD
+    dll.Everything_GetTotResults.restype = wt.DWORD
+    # Result accessors
     dll.Everything_GetResultFullPathNameW.argtypes = [wt.DWORD, wt.LPWSTR, wt.DWORD]
     dll.Everything_GetResultFullPathNameW.restype = wt.DWORD
     dll.Everything_GetResultSize.argtypes = [
@@ -94,6 +111,18 @@ def _load_dll() -> ctypes.WinDLL:
     dll.Everything_IsFolderResult.restype = wt.BOOL
     _dll = dll
     return dll
+
+
+def _check_ready(dll: ctypes.WinDLL) -> None:
+    """Raise a clear error if Everything is unreachable or still indexing."""
+    if dll.Everything_IsDBLoaded():
+        return
+    code = dll.Everything_GetLastError()
+    if code == _ERROR_IPC:
+        raise EverythingError(_ERROR_MESSAGES[_ERROR_IPC])
+    raise EverythingError(
+        "El índice de Everything aún se está cargando; reintenta en unos segundos."
+    )
 
 
 def _filetime_to_iso(filetime: int) -> str | None:
@@ -123,8 +152,14 @@ def search(
     """
     if sort not in SORT_MODES:
         raise EverythingError(f"sort inválido: {sort!r}. Valores: {', '.join(SORT_MODES)}")
+    if max_results < 1:
+        raise EverythingError(f"max_results debe ser >= 1 (recibido {max_results}).")
+    if offset < 0:
+        raise EverythingError(f"offset debe ser >= 0 (recibido {offset}).")
+    max_results = min(max_results, _MAX_RESULTS_CAP)
     dll = _load_dll()
     with _lock:
+        _check_ready(dll)
         dll.Everything_Reset()
         dll.Everything_SetSearchW(query)
         dll.Everything_SetMatchCase(bool(match_case))
