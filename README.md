@@ -17,11 +17,12 @@ ven el proyecto actual.
 
 ## Tool expuesta
 
-`search_files(query, max_results=50, offset=0, match_case=False, regex=False, sort="relevance")`
+`search_files(query, max_results=50, offset=0, match_case=False, match_whole_word=False, regex=False, sort="default")`
 
 `query` acepta la sintaxis nativa de Everything (`ext:pdf`, `path:"C:\..."`, `dm:today`,
-`size:>10mb`, `folder:`, `file:`, `|`, `!`…). Devuelve `{total_results, results:[{path,
-is_folder, size, modified}]}`. Solo busca nombres, no contenido.
+`size:>10mb`, `folder:`, `file:`, `|`, `!`…). `sort` es uno de `default` (orden del índice),
+`name`, `path`, `size`, `date_modified`. Devuelve `{total_results, results:[{path, is_folder,
+size, modified}]}`. Solo busca nombres, no contenido.
 
 ## Registro en Claude Code
 
