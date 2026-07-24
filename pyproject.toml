@@ -1,0 +1,26 @@
+[project]
+name = "everything-mcp"
+version = "0.1.0"
+description = "MCP server exposing Everything (voidtools) instant filename search to LLM agents"
+readme = "README.md"
+authors = [
+    { name = "santisoutoo", email = "santiago.souto.01@uie.edu" }
+]
+requires-python = ">=3.11"
+dependencies = ["mcp[cli]>=1.2.0"]
+
+[project.scripts]
+everything-mcp = "everything_mcp.server:main"
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.9.0",
+]
+
+[tool.ruff]
+line-length = 100
