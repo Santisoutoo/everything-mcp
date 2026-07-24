@@ -50,6 +50,9 @@ def test_match_whole_word_narrows_results() -> None:
     assert whole["total_results"] <= loose["total_results"]
 
 
-def test_invalid_sort_raises() -> None:
-    with pytest.raises(EverythingError, match="sort"):
-        search("x", sort="bogus")
+def test_match_path_widens_results() -> None:
+    # "Windows" appears in many paths but few file names; matching the path
+    # should find at least as many results as matching the name only.
+    name_only = search("Windows", max_results=1)
+    with_path = search("Windows", match_path=True, max_results=1)
+    assert with_path["total_results"] >= name_only["total_results"]

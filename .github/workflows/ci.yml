@@ -9,6 +9,10 @@ on:
 jobs:
   quality:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -18,7 +22,7 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --dev --python ${{ matrix.python-version }}
 
       - name: Check formatting
         run: uv run ruff format --check .
@@ -26,7 +30,23 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
+      - name: Type-check
+        run: uv run mypy src
+
       - name: Run tests
         # Smoke tests self-skip when Everything / the SDK dll are unavailable
-        # (the CI runner has neither), so this stays green with skips.
+        # (the CI runner has neither); validation tests run everywhere.
         run: uv run pytest -q
+
+  # Single stable required check: green only if every matrix job passed.
+  ci-success:
+    needs: quality
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify matrix result
+        run: |
+          if [ "${{ needs.quality.result }}" != "success" ]; then
+            echo "quality matrix failed"
+            exit 1
+          fi

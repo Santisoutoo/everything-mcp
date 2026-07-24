@@ -6,9 +6,21 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from everything_mcp.sdk import EverythingError, search
+from everything_mcp.sdk import EverythingError, search, status
 
 mcp = FastMCP("everything")
+
+
+@mcp.tool()
+def everything_status() -> dict[str, Any]:
+    """Report whether Everything is reachable and its index is ready.
+
+    Call this to self-diagnose before searching: returns `available` (bool),
+    `db_loaded` (False while Everything is still building its index),
+    `version`, and `indexed_items` (total files+folders indexed). On failure
+    returns `available: False` with an actionable `error` message.
+    """
+    return status()
 
 
 @mcp.tool()
@@ -18,6 +30,7 @@ def search_files(
     offset: int = 0,
     match_case: bool = False,
     match_whole_word: bool = False,
+    match_path: bool = False,
     regex: bool = False,
     sort: str = "default",
 ) -> dict[str, Any]:
@@ -38,6 +51,7 @@ def search_files(
     Searches names only, NOT file contents. `total_results` in the response is
     the full match count; page with `offset` if it exceeds `max_results`.
     `match_whole_word` requires each search term to match a whole word.
+    `match_path` matches the terms against the full path, not just the name.
     `sort` is one of: default (index order), name, path, size (largest first),
     date_modified (newest first).
     """
@@ -48,6 +62,7 @@ def search_files(
             offset=offset,
             match_case=match_case,
             match_whole_word=match_whole_word,
+            match_path=match_path,
             regex=regex,
             sort=sort,
         )

@@ -44,8 +44,11 @@ _ERROR_MESSAGES = {
 }
 
 _MAX_PATH_BUF = 32768
+_MAX_RESULTS_CAP = 1000  # upper bound passed to Everything_SetMax
 _FILETIME_EPOCH_OFFSET = 116444736000000000  # FILETIME ticks at Unix epoch
 _FILETIME_TICKS_PER_SEC = 10_000_000
+
+_ERROR_IPC = 2  # Everything_GetLastError: IPC unavailable (Everything not running)
 
 
 class EverythingError(RuntimeError):
@@ -75,9 +78,28 @@ def _load_dll() -> ctypes.WinDLL:
             "ahí, o apunta la variable de entorno EVERYTHING_DLL a la DLL."
         )
     dll = ctypes.WinDLL(str(path))
+    # Search-building setters
     dll.Everything_SetSearchW.argtypes = [wt.LPCWSTR]
+    dll.Everything_SetMatchCase.argtypes = [wt.BOOL]
+    dll.Everything_SetMatchWholeWord.argtypes = [wt.BOOL]
+    dll.Everything_SetMatchPath.argtypes = [wt.BOOL]
+    dll.Everything_SetRegex.argtypes = [wt.BOOL]
+    dll.Everything_SetMax.argtypes = [wt.DWORD]
+    dll.Everything_SetOffset.argtypes = [wt.DWORD]
+    dll.Everything_SetSort.argtypes = [wt.DWORD]
+    dll.Everything_SetRequestFlags.argtypes = [wt.DWORD]
+    # Query + status
     dll.Everything_QueryW.argtypes = [wt.BOOL]
     dll.Everything_QueryW.restype = wt.BOOL
+    dll.Everything_GetLastError.restype = wt.DWORD
+    dll.Everything_IsDBLoaded.restype = wt.BOOL
+    dll.Everything_GetNumResults.restype = wt.DWORD
+    dll.Everything_GetTotResults.restype = wt.DWORD
+    dll.Everything_GetMajorVersion.restype = wt.DWORD
+    dll.Everything_GetMinorVersion.restype = wt.DWORD
+    dll.Everything_GetRevision.restype = wt.DWORD
+    dll.Everything_GetBuildNumber.restype = wt.DWORD
+    # Result accessors
     dll.Everything_GetResultFullPathNameW.argtypes = [wt.DWORD, wt.LPWSTR, wt.DWORD]
     dll.Everything_GetResultFullPathNameW.restype = wt.DWORD
     dll.Everything_GetResultSize.argtypes = [
@@ -96,6 +118,18 @@ def _load_dll() -> ctypes.WinDLL:
     return dll
 
 
+def _check_ready(dll: ctypes.WinDLL) -> None:
+    """Raise a clear error if Everything is unreachable or still indexing."""
+    if dll.Everything_IsDBLoaded():
+        return
+    code = dll.Everything_GetLastError()
+    if code == _ERROR_IPC:
+        raise EverythingError(_ERROR_MESSAGES[_ERROR_IPC])
+    raise EverythingError(
+        "El índice de Everything aún se está cargando; reintenta en unos segundos."
+    )
+
+
 def _filetime_to_iso(filetime: int) -> str | None:
     if filetime in (0, 0xFFFFFFFFFFFFFFFF):
         return None
@@ -108,12 +142,48 @@ def _filetime_to_iso(filetime: int) -> str | None:
         return None
 
 
+def status() -> dict[str, Any]:
+    """Report Everything availability and index state. Never raises.
+
+    Returns {"available", "db_loaded", "version", "indexed_items"} when reachable,
+    or {"available": False, "error": <msg>} when the dll is missing or Everything
+    is not running.
+    """
+    try:
+        dll = _load_dll()
+    except EverythingError as exc:
+        return {"available": False, "error": str(exc)}
+    with _lock:
+        db_loaded = bool(dll.Everything_IsDBLoaded())
+        if not db_loaded and dll.Everything_GetLastError() == _ERROR_IPC:
+            return {"available": False, "error": _ERROR_MESSAGES[_ERROR_IPC]}
+        version = (
+            f"{dll.Everything_GetMajorVersion()}.{dll.Everything_GetMinorVersion()}."
+            f"{dll.Everything_GetRevision()}.{dll.Everything_GetBuildNumber()}"
+        )
+        # Count everything indexed without fetching any result rows.
+        dll.Everything_Reset()
+        dll.Everything_SetSearchW("")
+        dll.Everything_SetMax(0)
+        dll.Everything_SetRequestFlags(_REQUEST_FILE_NAME)
+        indexed_items = 0
+        if dll.Everything_QueryW(True):
+            indexed_items = int(dll.Everything_GetTotResults())
+    return {
+        "available": True,
+        "db_loaded": db_loaded,
+        "version": version,
+        "indexed_items": indexed_items,
+    }
+
+
 def search(
     query: str,
     max_results: int = 50,
     offset: int = 0,
     match_case: bool = False,
     match_whole_word: bool = False,
+    match_path: bool = False,
     regex: bool = False,
     sort: str = "default",
 ) -> dict[str, Any]:
@@ -123,12 +193,19 @@ def search(
     """
     if sort not in SORT_MODES:
         raise EverythingError(f"sort inválido: {sort!r}. Valores: {', '.join(SORT_MODES)}")
+    if max_results < 1:
+        raise EverythingError(f"max_results debe ser >= 1 (recibido {max_results}).")
+    if offset < 0:
+        raise EverythingError(f"offset debe ser >= 0 (recibido {offset}).")
+    max_results = min(max_results, _MAX_RESULTS_CAP)
     dll = _load_dll()
     with _lock:
+        _check_ready(dll)
         dll.Everything_Reset()
         dll.Everything_SetSearchW(query)
         dll.Everything_SetMatchCase(bool(match_case))
         dll.Everything_SetMatchWholeWord(bool(match_whole_word))
+        dll.Everything_SetMatchPath(bool(match_path))
         dll.Everything_SetRegex(bool(regex))
         dll.Everything_SetMax(max_results)
         dll.Everything_SetOffset(offset)
