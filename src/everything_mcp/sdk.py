@@ -16,7 +16,7 @@ from typing import Any
 
 # Sort constants (Everything.h)
 SORT_MODES = {
-    "relevance": 0,  # EVERYTHING_SORT_NAME_ASCENDING is 1; 0 keeps index order (best-match first for simple queries)
+    "default": 0,  # no SetSort call -> Everything's index order (it has no relevance ranking)
     "name": 1,  # EVERYTHING_SORT_NAME_ASCENDING
     "path": 3,  # EVERYTHING_SORT_PATH_ASCENDING
     "size": 6,  # EVERYTHING_SORT_SIZE_DESCENDING
@@ -113,8 +113,9 @@ def search(
     max_results: int = 50,
     offset: int = 0,
     match_case: bool = False,
+    match_whole_word: bool = False,
     regex: bool = False,
-    sort: str = "relevance",
+    sort: str = "default",
 ) -> dict[str, Any]:
     """Run a filename search against the running Everything instance.
 
@@ -127,6 +128,7 @@ def search(
         dll.Everything_Reset()
         dll.Everything_SetSearchW(query)
         dll.Everything_SetMatchCase(bool(match_case))
+        dll.Everything_SetMatchWholeWord(bool(match_whole_word))
         dll.Everything_SetRegex(bool(regex))
         dll.Everything_SetMax(max_results)
         dll.Everything_SetOffset(offset)

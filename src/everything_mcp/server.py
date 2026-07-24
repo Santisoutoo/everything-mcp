@@ -17,8 +17,9 @@ def search_files(
     max_results: int = 50,
     offset: int = 0,
     match_case: bool = False,
+    match_whole_word: bool = False,
     regex: bool = False,
-    sort: str = "relevance",
+    sort: str = "default",
 ) -> dict[str, Any]:
     """Instantly search file and folder NAMES across the entire disk using the
     Everything index (use this instead of recursive directory listings when the
@@ -36,7 +37,8 @@ def search_files(
 
     Searches names only, NOT file contents. `total_results` in the response is
     the full match count; page with `offset` if it exceeds `max_results`.
-    `sort` is one of: relevance, name, path, size (largest first),
+    `match_whole_word` requires each search term to match a whole word.
+    `sort` is one of: default (index order), name, path, size (largest first),
     date_modified (newest first).
     """
     try:
@@ -45,6 +47,7 @@ def search_files(
             max_results=max_results,
             offset=offset,
             match_case=match_case,
+            match_whole_word=match_whole_word,
             regex=regex,
             sort=sort,
         )

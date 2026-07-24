@@ -43,6 +43,13 @@ def test_folder_results_have_no_size() -> None:
     assert all("size" not in r for r in out["results"])
 
 
+def test_match_whole_word_narrows_results() -> None:
+    loose = search("dll", max_results=1)
+    whole = search("dll", match_whole_word=True, max_results=1)
+    # whole-word matching can only match a subset of substring matching
+    assert whole["total_results"] <= loose["total_results"]
+
+
 def test_invalid_sort_raises() -> None:
     with pytest.raises(EverythingError, match="sort"):
         search("x", sort="bogus")
